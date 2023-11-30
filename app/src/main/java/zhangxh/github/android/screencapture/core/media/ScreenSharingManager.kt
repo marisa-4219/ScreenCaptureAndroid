@@ -1,0 +1,148 @@
+package zhangxh.github.android.screencapture.core.media
+
+import android.app.Activity
+import android.content.ComponentName
+import android.content.Intent
+import android.content.ServiceConnection
+import android.hardware.display.DisplayManager
+import android.hardware.display.VirtualDisplay
+import android.media.MediaCodec
+import android.media.MediaCodecInfo
+import android.media.MediaFormat
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
+import android.os.IBinder
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import zhangxh.github.android.screencapture.core.media.handle.SharingCallbackHandler
+import zhangxh.github.android.screencapture.core.media.service.AbstractScreenSharingService
+import zhangxh.github.android.screencapture.core.network.NettyClient
+
+class ScreenSharingManager(private val ctx: ComponentActivity, private val mimeType: String = DEFAULT_MIME_TYPE) {
+
+    companion object {
+        const val STATUS_READY = 0
+        const val STATUS_RUNNING = 1
+        const val STATUS_RELEASE = 2
+        const val DEFAULT_MIME_TYPE = MediaFormat.MIMETYPE_VIDEO_AVC
+    }
+
+    private val client = NettyClient()
+    private var manager: MediaProjectionManager? = null
+    private var media: MediaProjection? = null
+    private var codec: MediaCodec? = null
+    private var display: VirtualDisplay? = null
+
+    private var dpi: Int? = null
+    private var width: Int? = null
+    private var height: Int? = null
+    private var locker = Any()
+    private var status: Int = STATUS_READY
+
+    private val launcher: ActivityResultLauncher<Intent> = ctx.registerForActivityResult(ActivityResultContracts.StartActivityForResult(), this::onScreenCapturePermissionRequested)
+
+    fun init(serviceImplClass: Class<out AbstractScreenSharingService>) {
+        dpi = ctx.resources.displayMetrics.densityDpi
+        width = ctx.resources.displayMetrics.widthPixels
+        height = ctx.resources.displayMetrics.heightPixels
+
+        val connection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                manager = ctx.getSystemService(ComponentActivity.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                Toast.makeText(ctx, "屏幕录制服务断开", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        ctx.bindService(Intent(ctx, serviceImplClass), connection, ComponentActivity.BIND_AUTO_CREATE)
+
+        client.connect()
+    }
+
+    fun start() {
+        if (status != STATUS_READY) {
+            throw IllegalStateException("ScreenRecorder status not Ready")
+        }
+        handleScreenCapturePermissionRequest()
+    }
+
+    fun stop() {
+        synchronized(locker) {
+            if (status != STATUS_RUNNING) {
+                throw IllegalStateException("ScreenRecorder status not Running")
+            }
+            Toast.makeText(ctx, "STOP", Toast.LENGTH_SHORT).show()
+            media?.stop()
+            codec?.stop()
+            codec?.release()
+            display?.release()
+            status = STATUS_READY
+        }
+    }
+
+    fun release() {
+        synchronized(locker) {
+            try {
+                media?.stop()
+            } catch (_: Exception) {
+            }
+            try {
+                codec?.stop()
+            } catch (_: Exception) {
+            }
+            try {
+                codec?.release()
+            } catch (_: Exception) {
+            }
+            try {
+                display?.release()
+            } catch (_: Exception) {
+            }
+            try {
+                client.release()
+            } catch (_: Exception) {
+            }
+            status = STATUS_RELEASE
+        }
+    }
+
+    private fun handleScreenCapturePermissionRequest() {
+        launcher.launch(manager!!.createScreenCaptureIntent())
+    }
+
+    private fun onScreenCapturePermissionRequested(result: ActivityResult) {
+        if (result.resultCode == Activity.RESULT_OK) {
+            synchronized(locker) {
+                val frameRate = 30
+                val frameInterval = 1
+                val bitRate = 10000
+
+                media = manager!!.getMediaProjection(result.resultCode, result.data as Intent)
+                codec = MediaCodec.createEncoderByType(mimeType).apply {
+                    val format = MediaFormat.createVideoFormat(mimeType, width!!, height!!).apply {
+                        setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
+                        setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+                        setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
+                        setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, frameInterval)
+                    }
+
+                    setCallback(SharingCallbackHandler(client))
+                    configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                }
+                display = media!!.createVirtualDisplay("VirtualDisplay", width!!, height!!, dpi!!, DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC, codec!!.createInputSurface(), null, null)
+
+
+                codec!!.start()
+                status = STATUS_RUNNING
+                Toast.makeText(ctx, "START", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+}
+

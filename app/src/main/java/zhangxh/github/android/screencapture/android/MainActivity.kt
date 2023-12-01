@@ -16,8 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import zhangxh.github.android.screencapture.service.codec.ScreenSharingManager
 import zhangxh.github.android.screencapture.android.ui.theme.ScreenCaptureTheme
+import zhangxh.github.android.screencapture.core.ScreenCaptureManager
 
 
 class MainActivity : ComponentActivity() {
@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
     private val permissionManager: PermissionManager = PermissionManager(this)
         .append(Manifest.permission.RECORD_AUDIO)
 
-    private val sharer: ScreenSharingManager = ScreenSharingManager(this)
+    private val screenCaptureManager: ScreenCaptureManager = ScreenCaptureManager(this)
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,14 +41,14 @@ class MainActivity : ComponentActivity() {
             }
         }
         permissionManager.request {
-            sharer.init(ScreenShareService::class.java)
+            screenCaptureManager.initialize(ScreenShareService::class.java)
             Toast.makeText(this, "Permission OK", Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        sharer.release()
+        screenCaptureManager.release()
     }
 
     @Composable
@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
         ) {
             Button(onClick = {
                 try {
-                    sharer.start()
+                    screenCaptureManager.start()
                 } catch (e: Exception) {
                     e.printStackTrace()
                     Toast.makeText(ctx, "发生错误 ${e.message}", Toast.LENGTH_SHORT).show()
@@ -72,7 +72,7 @@ class MainActivity : ComponentActivity() {
 
             Button(onClick = {
                 try {
-                    sharer.stop()
+                    screenCaptureManager.stop()
                 } catch (e: Exception) {
                     e.printStackTrace()
                     Toast.makeText(ctx, "发生错误 ${e.message}", Toast.LENGTH_SHORT)

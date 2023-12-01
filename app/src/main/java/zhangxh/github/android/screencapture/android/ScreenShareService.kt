@@ -1,8 +1,8 @@
 package zhangxh.github.android.screencapture.android
 
-import zhangxh.github.android.screencapture.service.codec.AbstractScreenSharingService
+import zhangxh.github.android.screencapture.core.service.AbstractScreenCaptureService
 
 
-class ScreenShareService : AbstractScreenSharingService() {
+class ScreenShareService : AbstractScreenCaptureService() {
 
 }

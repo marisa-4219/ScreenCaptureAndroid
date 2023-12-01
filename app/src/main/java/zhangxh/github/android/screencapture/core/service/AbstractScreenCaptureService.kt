@@ -1,4 +1,4 @@
-package zhangxh.github.android.screencapture.service.codec
+package zhangxh.github.android.screencapture.core.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -12,7 +12,7 @@ import android.os.IBinder
 import zhangxh.github.android.screencapture.R
 import java.util.UUID
 
-abstract class AbstractScreenSharingService(
+abstract class AbstractScreenCaptureService(
     private val CHANNEL_ID: String = UUID.randomUUID().toString(),
     private val NOTIFICATION_ID: Int = System.currentTimeMillis().toInt()
 ) : Service() {

@@ -1,18 +1,17 @@
-package zhangxh.github.android.screencapture.service.remote
+package zhangxh.github.android.screencapture.core.domain
 
 import zhangxh.github.android.screencapture.utils.insertInt16
 import zhangxh.github.android.screencapture.utils.toInt16ByteArray
 import java.io.ByteArrayOutputStream
 
-class Packet(
+class ScreenCaptureMessage(
     private val type: Int = TYPE_FRAME,
     private val body: ByteArray
 ) {
     companion object {
         const val TYPE_METADATA: Int = 0
         const val TYPE_FRAME: Int = 1
-        const val TYPE_CONFIG: Int = 2
-        const val TYPE_KEYFRAME: Int = 3
+        const val TYPE_KEYFRAME: Int = 2
     }
 
     fun toByteArray(): ByteArray {

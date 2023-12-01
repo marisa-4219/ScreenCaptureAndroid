@@ -1,6 +1,6 @@
-package zhangxh.github.android.screencapture.service.entity
+package zhangxh.github.android.screencapture.core.domain
 
-data class CodecMetadata(
+data class ScreenCaptureMetadata(
     val width: Int,
     val height: Int,
     val dpi: Int,

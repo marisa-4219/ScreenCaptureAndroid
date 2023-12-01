@@ -1,8 +1,8 @@
-package zhangxh.github.android.screencapture.core.utils
+package zhangxh.github.android.screencapture.utils
 
 import android.util.Log
 
-class LoggerUtils {
+class Logging {
     companion object {
         private fun getFullyTag(): String {
             val t: String

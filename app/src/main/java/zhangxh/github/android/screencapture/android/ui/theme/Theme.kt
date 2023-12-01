@@ -1,4 +1,4 @@
-package zhangxh.github.android.screencapture.ui.theme
+package zhangxh.github.android.screencapture.android.ui.theme
 
 import android.app.Activity
 import android.os.Build

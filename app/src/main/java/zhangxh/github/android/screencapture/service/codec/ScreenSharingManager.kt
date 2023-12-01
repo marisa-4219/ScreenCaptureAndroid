@@ -1,4 +1,4 @@
-package zhangxh.github.android.screencapture.core.media
+package zhangxh.github.android.screencapture.service.codec
 
 import android.app.Activity
 import android.content.ComponentName
@@ -17,11 +17,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import zhangxh.github.android.screencapture.core.media.handle.SharingCallbackHandler
-import zhangxh.github.android.screencapture.core.media.service.AbstractScreenSharingService
-import zhangxh.github.android.screencapture.core.network.NettyClient
+import zhangxh.github.android.screencapture.service.entity.CodecMetadata
+import zhangxh.github.android.screencapture.service.remote.Remote
 
-class ScreenSharingManager(private val ctx: ComponentActivity, private val mimeType: String = DEFAULT_MIME_TYPE) {
+class ScreenSharingManager(
+    private val ctx: ComponentActivity,
+    private val mimeType: String = DEFAULT_MIME_TYPE
+) {
 
     companion object {
         const val STATUS_READY = 0
@@ -30,28 +32,32 @@ class ScreenSharingManager(private val ctx: ComponentActivity, private val mimeT
         const val DEFAULT_MIME_TYPE = MediaFormat.MIMETYPE_VIDEO_AVC
     }
 
-    private val client = NettyClient()
+    private var remote: Remote? = null
     private var manager: MediaProjectionManager? = null
     private var media: MediaProjection? = null
     private var codec: MediaCodec? = null
     private var display: VirtualDisplay? = null
-
-    private var dpi: Int? = null
-    private var width: Int? = null
-    private var height: Int? = null
+    private var metadata: CodecMetadata? = null
     private var locker = Any()
     private var status: Int = STATUS_READY
 
-    private val launcher: ActivityResultLauncher<Intent> = ctx.registerForActivityResult(ActivityResultContracts.StartActivityForResult(), this::onScreenCapturePermissionRequested)
+    private val launcher: ActivityResultLauncher<Intent> = ctx.registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+        this::onScreenCapturePermissionRequested
+    )
 
     fun init(serviceImplClass: Class<out AbstractScreenSharingService>) {
-        dpi = ctx.resources.displayMetrics.densityDpi
-        width = ctx.resources.displayMetrics.widthPixels
-        height = ctx.resources.displayMetrics.heightPixels
+        val dpi = ctx.resources.displayMetrics.densityDpi
+        val width = ctx.resources.displayMetrics.widthPixels
+        val height = ctx.resources.displayMetrics.heightPixels
+
+        metadata = CodecMetadata(width, height, dpi, 2 * width * height / 20, 30, 1)
+
 
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-                manager = ctx.getSystemService(ComponentActivity.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                manager =
+                    ctx.getSystemService(ComponentActivity.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
@@ -59,9 +65,13 @@ class ScreenSharingManager(private val ctx: ComponentActivity, private val mimeT
             }
         }
 
-        ctx.bindService(Intent(ctx, serviceImplClass), connection, ComponentActivity.BIND_AUTO_CREATE)
+        ctx.bindService(
+            Intent(ctx, serviceImplClass),
+            connection,
+            ComponentActivity.BIND_AUTO_CREATE
+        )
 
-        client.connect()
+        remote = Remote("10.0.2.2", 8888, metadata!!)
     }
 
     fun start() {
@@ -104,7 +114,7 @@ class ScreenSharingManager(private val ctx: ComponentActivity, private val mimeT
             } catch (_: Exception) {
             }
             try {
-                client.release()
+                remote?.release()
             } catch (_: Exception) {
             }
             status = STATUS_RELEASE
@@ -118,24 +128,34 @@ class ScreenSharingManager(private val ctx: ComponentActivity, private val mimeT
     private fun onScreenCapturePermissionRequested(result: ActivityResult) {
         if (result.resultCode == Activity.RESULT_OK) {
             synchronized(locker) {
-                val frameRate = 30
-                val frameInterval = 1
-                val bitRate = 10000
-
                 media = manager!!.getMediaProjection(result.resultCode, result.data as Intent)
                 codec = MediaCodec.createEncoderByType(mimeType).apply {
-                    val format = MediaFormat.createVideoFormat(mimeType, width!!, height!!).apply {
-                        setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
-                        setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
-                        setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
-                        setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, frameInterval)
-                    }
+                    val format =
+                        MediaFormat.createVideoFormat(mimeType, metadata!!.width, metadata!!.height)
+                            .apply {
+                                setInteger(
+                                    MediaFormat.KEY_COLOR_FORMAT,
+                                    MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible
+                                )
+                                setInteger(MediaFormat.KEY_BIT_RATE, metadata!!.bitRate)
+                                setInteger(MediaFormat.KEY_FRAME_RATE, metadata!!.frameRate)
+                                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, metadata!!.frameInterval)
+                            }
 
-                    setCallback(SharingCallbackHandler(client))
+                    setCallback(SharingCallbackHandler(remote!!))
                     configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
                 }
-                display = media!!.createVirtualDisplay("VirtualDisplay", width!!, height!!, dpi!!, DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC, codec!!.createInputSurface(), null, null)
 
+                display = media!!.createVirtualDisplay(
+                    "VirtualDisplay",
+                    metadata!!.width,
+                    metadata!!.height,
+                    metadata!!.dpi,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,
+                    codec!!.createInputSurface(),
+                    null,
+                    null
+                )
 
                 codec!!.start()
                 status = STATUS_RUNNING

@@ -27,7 +27,7 @@
         android:theme="@style/Theme.ScreenCapture"
         tools:targetApi="31">
         <activity
-            android:name=".activity.MainActivity"
+            android:name="zhangxh.github.android.screencapture.android.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.ScreenCapture">
@@ -38,7 +38,7 @@
             </intent-filter>
         </activity>
         <service
-            android:name=".service.ScreenRecordService"
+            android:name="zhangxh.github.android.screencapture.android.ScreenShareService"
             android:foregroundServiceType="mediaProjection" />
     </application>
 

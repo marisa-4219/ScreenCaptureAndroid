@@ -1,4 +1,4 @@
-package zhangxh.github.android.screencapture.core.network
+package zhangxh.github.android.screencapture.service.remote
 
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.Unpooled
@@ -12,12 +12,13 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.LengthFieldPrepender
-import zhangxh.github.android.screencapture.core.utils.logger
+import zhangxh.github.android.screencapture.utils.logger
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 @ChannelHandler.Sharable
-class NettyClient(var host: String = "10.0.2.2", var port: Int = 8888) : ChannelInboundHandlerAdapter() {
-
+class NettyClient(private var host: String, private var port: Int) :
+    ChannelInboundHandlerAdapter() {
     companion object {
         const val STATUS_DISCONNECT = 0
         const val STATUS_CONNECTING = 1
@@ -30,6 +31,7 @@ class NettyClient(var host: String = "10.0.2.2", var port: Int = 8888) : Channel
 
     private val worker = NioEventLoopGroup()
     private var main: ChannelFuture? = null
+    private var listener: (Int) -> Unit = {}
 
     private val bootstrap = Bootstrap()
         .group(worker)
@@ -49,7 +51,7 @@ class NettyClient(var host: String = "10.0.2.2", var port: Int = 8888) : Channel
             if (status == STATUS_RELEASE) {
                 throw IllegalStateException("client is release.")
             } else {
-                status = STATUS_CONNECTING
+                this.sc(STATUS_CONNECTING)
             }
 
             try {
@@ -60,7 +62,7 @@ class NettyClient(var host: String = "10.0.2.2", var port: Int = 8888) : Channel
                 e.printStackTrace()
             }
 
-            logger().info("-------------------------------------------- CLIENT CONNECTING -----------------------------------------------")
+            logger().info("Netty Client Connecting....")
             main = bootstrap.connect(host, port)
             main!!.addListener(ClientDisconnectListener(this))
         }
@@ -68,10 +70,19 @@ class NettyClient(var host: String = "10.0.2.2", var port: Int = 8888) : Channel
 
     fun release() {
         synchronized(locker) {
-            status = STATUS_RELEASE
+            this.sc(STATUS_RELEASE)
+
             main!!.channel().close().sync()
             worker.shutdownGracefully()
         }
+    }
+
+    fun setListener(listener: (Int) -> Unit) {
+        this.listener = listener
+    }
+
+    fun getStatus(): Int {
+        return status
     }
 
     fun sendMessage(msg: ByteArray) {
@@ -80,22 +91,28 @@ class NettyClient(var host: String = "10.0.2.2", var port: Int = 8888) : Channel
         }
     }
 
-    override fun channelActive(ctx: ChannelHandlerContext) {
-        this.ctx = ctx
-        logger().info("-------------------------------------------- CLIENT CONNECTED -----------------------------------------------")
+    private fun sc(status: Int) {
+        this.status = status
+        listener(this.status)
     }
 
-    override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-        logger().info("-------------------------------------------- MESSAGE RECEIVE -----------------------------------------------")
+    override fun channelActive(ctx: ChannelHandlerContext) {
+        this.ctx = ctx
+        logger().info("Netty Client Connected.")
     }
 
     override fun channelInactive(ctx: ChannelHandlerContext) {
-        logger().info("-------------------------------------------- CLIENT DISCONNECT -----------------------------------------------")
+        logger().info("Netty Client Disconnect.")
         synchronized(locker) {
             if (status == STATUS_RELEASE) return
-            status = STATUS_DISCONNECT
+
+            this.sc(STATUS_DISCONNECT)
             ctx.channel().eventLoop().schedule({ connect() }, 1, TimeUnit.SECONDS)
         }
+    }
+
+    override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+        logger().info("Netty Client Receive Message.")
     }
 
     inner class ClientDisconnectListener(

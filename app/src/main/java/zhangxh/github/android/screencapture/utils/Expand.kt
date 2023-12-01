@@ -1,8 +1,8 @@
-package zhangxh.github.android.screencapture.core.utils
+package zhangxh.github.android.screencapture.utils
 
 
-fun Any.logger(): LoggerUtils.Companion {
-    return LoggerUtils.Companion
+fun Any.logger(): Logging.Companion {
+    return Logging.Companion
 }
 
 fun ByteArray.insertInt32(position: Int, int: Int) {

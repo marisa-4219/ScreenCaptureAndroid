@@ -1,4 +1,4 @@
-package zhangxh.github.android.screencapture.activity
+package zhangxh.github.android.screencapture.android
 
 import android.Manifest
 import android.os.Bundle
@@ -16,10 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import zhangxh.github.android.screencapture.core.pack.PermissionManager
-import zhangxh.github.android.screencapture.core.media.ScreenSharingManager
-import zhangxh.github.android.screencapture.service.ScreenRecordService
-import zhangxh.github.android.screencapture.ui.theme.ScreenCaptureTheme
+import zhangxh.github.android.screencapture.service.codec.ScreenSharingManager
+import zhangxh.github.android.screencapture.android.ui.theme.ScreenCaptureTheme
 
 
 class MainActivity : ComponentActivity() {
@@ -43,7 +41,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         permissionManager.request {
-            sharer.init(ScreenRecordService::class.java)
+            sharer.init(ScreenShareService::class.java)
             Toast.makeText(this, "Permission OK", Toast.LENGTH_SHORT).show()
         }
     }

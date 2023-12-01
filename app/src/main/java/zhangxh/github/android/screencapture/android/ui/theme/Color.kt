@@ -1,4 +1,4 @@
-package zhangxh.github.android.screencapture.ui.theme
+package zhangxh.github.android.screencapture.android.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

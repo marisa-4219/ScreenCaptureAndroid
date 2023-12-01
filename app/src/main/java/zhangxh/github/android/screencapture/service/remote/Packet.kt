@@ -1,21 +1,19 @@
-package zhangxh.github.android.screencapture.core.network.entity
+package zhangxh.github.android.screencapture.service.remote
 
-import zhangxh.github.android.screencapture.core.utils.insertInt16
-import zhangxh.github.android.screencapture.core.utils.toInt16ByteArray
+import zhangxh.github.android.screencapture.utils.insertInt16
+import zhangxh.github.android.screencapture.utils.toInt16ByteArray
 import java.io.ByteArrayOutputStream
 
-class NettyMessage(
-    private val type: Int,
+class Packet(
+    private val type: Int = TYPE_FRAME,
     private val body: ByteArray
 ) {
-
     companion object {
-        val MESSAGE_TYPE_FRAME: Int = 0
-        val MESSAGE_TYPE_KEYFRAME: Int = 0
-        val MESSAGE_TYPE_CODEC_CONFIG: Int = 0
-        val MESSAGE_TYPE_CODEC_CONFIG: Int = 0
+        const val TYPE_METADATA: Int = 0
+        const val TYPE_FRAME: Int = 1
+        const val TYPE_CONFIG: Int = 2
+        const val TYPE_KEYFRAME: Int = 3
     }
-
 
     fun toByteArray(): ByteArray {
         val header = ByteArrayOutputStream().run {
@@ -26,18 +24,14 @@ class NettyMessage(
 
         header.insertInt16(0, header.size);
 
-
         return ByteArrayOutputStream().run {
             write(header)
             write(body)
             toByteArray()
         }
-
     }
 
     override fun toString(): String {
         return "FrameDataWrapper(frameType=$type, body=${body.contentToString()})"
     }
-
-
 }

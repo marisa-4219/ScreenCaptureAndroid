@@ -1,4 +1,4 @@
-package zhangxh.github.android.screencapture.core.media.service
+package zhangxh.github.android.screencapture.service.codec
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -13,22 +13,31 @@ import zhangxh.github.android.screencapture.R
 import java.util.UUID
 
 abstract class AbstractScreenSharingService(
-    private val CHANNEL_ID: String = UUID.randomUUID().toString(), private val NOTIFICATION_ID: Int = System.currentTimeMillis().toInt()
+    private val CHANNEL_ID: String = UUID.randomUUID().toString(),
+    private val NOTIFICATION_ID: Int = System.currentTimeMillis().toInt()
 ) : Service() {
-
 
     override fun onCreate() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationChannel = NotificationChannel(CHANNEL_ID, CHANNEL_ID, NotificationManager.IMPORTANCE_HIGH).apply {
+            val notificationChannel = NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_ID,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
                 setShowBadge(true)
                 enableLights(true)
                 lightColor = Color.RED
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
 
-            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(notificationChannel)
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
+                notificationChannel
+            )
 
-            val notification = Notification.Builder(this, CHANNEL_ID).setContentTitle("ScreenRecordService").setContentText("Record a screen...").setSmallIcon(R.drawable.ic_launcher_foreground).build()
+            val notification =
+                Notification.Builder(this, CHANNEL_ID).setContentTitle("ScreenRecordService")
+                    .setContentText("Record a screen...")
+                    .setSmallIcon(R.drawable.ic_launcher_foreground).build()
             startForeground(NOTIFICATION_ID, notification)
         }
     }

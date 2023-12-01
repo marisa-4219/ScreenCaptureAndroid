@@ -1,4 +1,4 @@
-package zhangxh.github.android.screencapture.core.pack
+package zhangxh.github.android.screencapture.android
 
 import android.content.pm.PackageManager
 import android.widget.Toast

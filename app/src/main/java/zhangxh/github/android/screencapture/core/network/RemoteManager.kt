@@ -12,6 +12,7 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.LengthFieldPrepender
+import io.netty.util.ReferenceCountUtil
 import zhangxh.github.android.screencapture.core.domain.ScreenCaptureMessage
 import zhangxh.github.android.screencapture.core.domain.ScreenCaptureMetadata
 import zhangxh.github.android.screencapture.utils.logger
@@ -139,6 +140,9 @@ class RemoteManager(
         val metadata = Gson().toJson(metadata)!!.toByteArray()
         val message = ScreenCaptureMessage(ScreenCaptureMessage.TYPE_METADATA, metadata)
         this.handler.send(message.toByteArray())
+
+        logger().info("Send Metadata.")
+
     }
 
     // ********************************************************* netty *********************************************************
@@ -234,6 +238,11 @@ class RemoteManager(
             synchronized(locker) {
                 reconnect()
             }
+        }
+
+        override fun channelRead(ctx: ChannelHandlerContext?, msg: Any?) {
+            sendMetadata()
+            ReferenceCountUtil.release(msg);
         }
 
         fun send(bytes: ByteArray) {

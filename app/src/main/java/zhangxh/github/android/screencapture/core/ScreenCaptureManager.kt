@@ -1,5 +1,6 @@
 package zhangxh.github.android.screencapture.core
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
@@ -8,6 +9,7 @@ import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
+import android.media.MediaCodecInfo.CodecCapabilities
 import android.media.MediaFormat
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
@@ -50,7 +52,7 @@ class ScreenCaptureManager(
         val dpi = ctx.resources.displayMetrics.densityDpi
         val width = ctx.resources.displayMetrics.widthPixels
         val height = ctx.resources.displayMetrics.heightPixels
-        metadata = ScreenCaptureMetadata(width, height, dpi, 2 * width * height / 20, 30, 1)
+        metadata = ScreenCaptureMetadata(width, height, dpi, 2 * width * height, 60, 0)
 
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -136,7 +138,7 @@ class ScreenCaptureManager(
                 val format = MediaFormat.createVideoFormat(mime, metadata.width, metadata.height).apply {
                     setInteger(
                         MediaFormat.KEY_COLOR_FORMAT,
-                        MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible
+                        MediaCodecInfo.CodecCapabilities.COLOR_FormatRGBAFlexible
                     )
                     setInteger(MediaFormat.KEY_BIT_RATE, metadata.bitRate)
                     setInteger(MediaFormat.KEY_FRAME_RATE, metadata.frameRate)
@@ -165,7 +167,7 @@ class ScreenCaptureManager(
                 this.codec = codec
                 this.display = display
                 this.status = RUNNING
-                
+
                 Toast.makeText(ctx, "START", Toast.LENGTH_SHORT).show()
             }
         }
@@ -187,15 +189,23 @@ class ScreenCaptureManager(
                 val bytes = ByteArray(info.size)
                 buffer.get(bytes)
                 remote?.let {
-                    if ((info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                        it.resetCodecConfig(bytes)
-                        return
+
+                    when (info.flags) {
+                        0 -> {
+                            it.sendNormalFrame(bytes)
+                        }
+
+                        MediaCodec.BUFFER_FLAG_CODEC_CONFIG -> {
+                            it.resetCodecConfig(bytes)
+                        }
+
+                        MediaCodec.BUFFER_FLAG_KEY_FRAME -> {
+                            it.sendKeyFrame(bytes)
+                        }
+
+                        MediaCodec.BUFFER_FLAG_END_OF_STREAM -> {
+                        }
                     }
-                    if ((info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
-                        it.sendKeyFrame(bytes)
-                        return
-                    }
-                    it.sendNormalFrame(bytes)
                 }
             } finally {
                 codec.releaseOutputBuffer(index, false)
